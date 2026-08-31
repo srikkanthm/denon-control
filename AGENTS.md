@@ -18,6 +18,7 @@ Guidance for AI agents and contributors working in this repository.
   - `DeviceStore.swift` — `@MainActor ObservableObject`: mDNS discovery/pairing/remove/rescan + `UserDefaults` persistence.
   - `DenonTelnet.swift` — telnet client (connect/send/read per call), one shared serial `DispatchQueue`.
   - `GlobalVolumeShortcuts.swift` — `@MainActor` Carbon global hotkeys (⌘⌥↑/⌘⌥↓ → `MVUP`/`MVDOWN`), started/stopped from `AppDelegate`.
+  - `LoginItemController.swift` — `@MainActor` launch-at-login toggle: primary `SMAppService.mainApp` (non-sandboxed apps can register from any location, not just `/Applications`), fallback `~/Library/LaunchAgents` plist via `/bin/launchctl bootstrap`. `isEnabled`/`statusNote` derived live.
 - AVR control is plain-text telnet on port **23**: `PW?`/`PWON`/`PWSTANDBY`, `MV?`/`MV<n>`/`MV<n*10>`. Responses are CR-terminated (`MV<v>\rMVMAX <max>\r`).
 
 ## Hard-won pitfalls (don't regress)
@@ -31,6 +32,7 @@ Guidance for AI agents and contributors working in this repository.
 - **Global hotkeys**: register with Carbon `RegisterEventHotKey` (code + modifiers), not `EventHotKeySpec` — that struct is stripped from the 64-bit headers (compiler can't find it). `InstallEventHandler` returns `OSStatus`; use an out-param for the `EventHandlerRef`. Handler must be a non-capturing `EventHandlerUPP` that hops to `@MainActor` via `Task`.
 - **Synthetic input cannot verify hotkeys**: hotkey matching ignores injected CGEvents/System Events on macOS 26 — you must get a real physical key press to verify. Registration returning `noErr` is a necessary but not sufficient check.
 - **⌘⌥↑/⌘⌥↓ are taken**: don't reuse these combos for anything else (panel slider uses left/right arrows, so no clash). Key-repeat behavior is desirable here (hold to ramp).
+- **Login items**: `SMAppService.mainApp` does NOT require `/Applications` for non-sandboxed apps (registering from the workspace works). Verify via `sfltool dumpbtm` (look for `2.com.local.DenonControl` app type with an `enabled` disposition) — the job does NOT appear under its bundle id in `launchctl list`/`print`. The LaunchAgent fallback is dead code today but kept for sandboxed/edge cases.
 
 ## Style
 

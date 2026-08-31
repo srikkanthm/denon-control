@@ -40,6 +40,8 @@ struct ContentView: View {
     @State private var pendingRemoval: DenonDevice?
     @State private var pendingPowerOff = false
     @FocusState private var powerFocused: Bool
+    @State private var launchAtLogin = false
+    @State private var loginItemNote: String?
 
     private var host: String? { store.current?.host }
 
@@ -176,6 +178,10 @@ struct ContentView: View {
 
             Divider()
 
+            loginItemRow
+
+            Divider()
+
             devicesSection
 
             if pendingRemoval != nil {
@@ -208,6 +214,7 @@ struct ContentView: View {
         .onAppear {
             NSApp.activate(ignoringOtherApps: true)
             syncState()
+            refreshLoginItem()
             DispatchQueue.main.async {
                 volumeFocused = false
                 powerFocused = false
@@ -218,6 +225,7 @@ struct ContentView: View {
                 volumeFocused = false
                 powerFocused = false
             }
+            refreshLoginItem()
         }
         .onChange(of: store.current?.host) {
             NSApp.activate(ignoringOtherApps: true)
@@ -369,6 +377,49 @@ struct ContentView: View {
         .padding(.vertical, 10)
         .background(Color.red.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
         .padding([.horizontal, .bottom], 6)
+    }
+
+    private var loginItemRow: some View {
+        VStack(spacing: 6) {
+            Toggle(isOn: Binding(
+                get: { launchAtLogin },
+                set: { on in toggleLoginItem(on) }
+            )) {
+                HStack(spacing: 8) {
+                    Image(systemName: "power")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Text("Launch at login")
+                        .font(.system(size: 12))
+                }
+            }
+            .toggleStyle(.switch)
+            .controlSize(.small)
+
+            if let loginItemNote {
+                Text(loginItemNote)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+
+    private func toggleLoginItem(_ on: Bool) {
+        let ok = LoginItemController.shared.setEnabled(on)
+        launchAtLogin = LoginItemController.shared.isEnabled
+        loginItemNote = ok
+            ? nil
+            : (on
+                ? "Move Denon Control to /Applications and try again"
+                : "Remove it in System Settings → General → Login Items")
+    }
+
+    private func refreshLoginItem() {
+        launchAtLogin = LoginItemController.shared.isEnabled
+        loginItemNote = LoginItemController.shared.statusNote
     }
 
     private var sortedCandidates: [DenonDevice] {

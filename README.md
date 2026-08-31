@@ -9,6 +9,7 @@ A macOS menu bar app for controlling a Denon AVR over telnet. Shows the current 
 - **Volume control** — custom slider (drag, or arrow keys when focused) that sends `MV` commands over telnet. Volume reads back the receiver's current value and max.
 - **Global volume shortcuts** — press **⌘⌥↑** or **⌘⌥↓** anywhere on the Mac to nudge the receiver volume up or down by 0.5 (works without opening the panel, no permissions needed).
 - **Power control** — custom power button that reflects ON/OFF state, with an inline confirmation before turning the device off.
+- **Launch at login** — a checkbox in the panel registers the app as a macOS login item (`SMAppService`, with a LaunchAgent fallback); state refreshes each time the panel opens.
 - **Unpair** — remove a device (it stays hidden until you scan and re-select it).
 
 ## Requirements
@@ -39,6 +40,7 @@ Sources/DenonControl/
   DeviceStore.swift       # mDNS discovery, pairing, UserDefaults persistence
   DenonTelnet.swift       # tiny telnet client (single shared queue)
   GlobalVolumeShortcuts.swift  # Carbon global hotkeys (volume up/down)
+  LoginItemController.swift    # launch-at-login (SMAppService + LaunchAgent fallback)
 Resources/
   Info.plist
   AppIcon.icns
@@ -50,3 +52,4 @@ build.sh                  # release build -> DenonControl.app
 - Receivers may be found under multiple service types (AirPlay vs. native `_denonavr`), so the app dedupes by resolved host.
 - Volume values with fractional steps (0.5) are sent as `MV<value*10>` (e.g. 56.5 → `MV565`).
 - Global shortcuts are registered with Carbon `RegisterEventHotKey`; the current device (from `UserDefaults`) is the target. Key repeats nudge repeatedly.
+- Launch at login uses `SMAppService.mainApp` (works for non-sandboxed apps from any location; BTM status `.requiresApproval` prompts the user to approve in System Settings). If registration throws, it falls back to a `~/Library/LaunchAgents` plist.
