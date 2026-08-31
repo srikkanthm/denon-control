@@ -85,7 +85,7 @@ final class LoginItemController {
     }
 
     private func removeLaunchAgent() {
-        runLaunchctl(arguments: ["bootout", "gui/\(getuid())/\(Self.agentLabel)"])
+        _ = runLaunchctl(arguments: ["bootout", "gui/\(getuid())/\(Self.agentLabel)"])
         try? FileManager.default.removeItem(at: agentURL)
     }
 

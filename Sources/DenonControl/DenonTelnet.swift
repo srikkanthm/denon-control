@@ -33,12 +33,23 @@ final class DenonTelnet {
         addr.sin_port = port.bigEndian
         addr.sin_addr = resolve(host)
 
+        let flags = fcntl(fd, F_GETFL, 0)
+        _ = fcntl(fd, F_SETFL, flags | O_NONBLOCK)
         let connectResult = withUnsafePointer(to: &addr) {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { pointer in
                 connect(fd, pointer, socklen_t(MemoryLayout<sockaddr_in>.size))
             }
         }
-        guard connectResult == 0 else { return nil }
+        guard connectResult == 0 || errno == EINPROGRESS || errno == EISCONN else { return nil }
+        if connectResult != 0 {
+            var pfd = pollfd(fd: fd, events: Int16(POLLOUT), revents: 0)
+            guard poll(&pfd, 1, 2000) > 0, pfd.revents & Int16(POLLOUT) != 0 else { return nil }
+            var socketError: Int32 = 0
+            var errorSize = socklen_t(MemoryLayout<Int32>.size)
+            guard getsockopt(fd, SOL_SOCKET, SO_ERROR, &socketError, &errorSize) == 0,
+                  socketError == 0 else { return nil }
+        }
+        _ = fcntl(fd, F_SETFL, flags)
 
         let payload = command + "\r"
         let sent = payload.withCString { Darwin.send(fd, $0, payload.count, 0) }
@@ -47,7 +58,9 @@ final class DenonTelnet {
         var response = ""
         var buffer = [UInt8](repeating: 0, count: 4096)
         var gotData = false
-        while true {
+        var iterations = 0
+        while iterations < 64 {
+            iterations += 1
             let n = recv(fd, &buffer, buffer.count, 0)
             if n <= 0 { break }
             response += String(decoding: buffer[0..<n], as: UTF8.self)

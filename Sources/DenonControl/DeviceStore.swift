@@ -196,9 +196,9 @@ final class DeviceStore: ObservableObject {
         }
         let probe = NWConnection(to: result.endpoint, using: params)
         probe.stateUpdateHandler = { [weak self] state in
-            let release: () -> Void = {
+            let release: () -> Void = { [weak probe] in
                 Task { @MainActor [weak self] in
-                    guard let self else { return }
+                    guard let self, let probe else { return }
                     self.probes.removeAll { $0 === probe }
                 }
             }
@@ -218,6 +218,13 @@ final class DeviceStore: ObservableObject {
                 release()
             case .failed:
                 probe.cancel()
+                release()
+            case .waiting:
+                self?.mqueue.asyncAfter(deadline: .now() + 4) { [weak probe] in
+                    guard let probe else { return }
+                    probe.cancel()
+                }
+            case .cancelled:
                 release()
             default:
                 break
