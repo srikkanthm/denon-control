@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "DenonVol",
+    name: "DenonControl",
     platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(
-            name: "DenonVol",
-            path: "Sources/DenonVol"
+            name: "DenonControl",
+            path: "Sources/DenonControl"
         )
     ]
 )
