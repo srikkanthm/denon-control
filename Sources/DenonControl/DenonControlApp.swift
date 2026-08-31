@@ -26,8 +26,23 @@ struct ContentView: View {
     @State private var volumeSet: DispatchWorkItem?
     @FocusState private var volumeFocused: Bool
     @State private var pendingRemoval: DenonDevice?
+    @State private var pendingPowerOff = false
+    @FocusState private var powerFocused: Bool
 
     private var host: String? { store.current?.host }
+
+    private var showSlider: Bool { powerOn && !pendingPowerOff }
+
+    private func togglePower() {
+        if powerOn {
+            pendingPowerOff = true
+            return
+        }
+        pendingPowerOff = false
+        powerOn = true
+        guard let host else { return }
+        denon.send("PWON", host: host)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -36,21 +51,44 @@ struct ContentView: View {
             if store.current != nil {
                 Divider()
 
-                Toggle(isOn: Binding(
-                    get: { powerOn },
-                    set: { newValue in
-                        powerOn = newValue
-                        guard let host else { return }
-                        denon.send(newValue ? "PWON" : "PWSTANDBY", host: host)
+                Button {
+                    togglePower()
+                } label: {
+                    HStack(spacing: 8) {
+                        ZStack {
+                            Circle()
+                                .fill(powerOn ? Color.green : Color.secondary.opacity(0.16))
+                                .frame(width: 24, height: 24)
+                            Image(systemName: "power")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(powerOn ? Color.white : Color.secondary)
+                        }
+                        Text("Power")
+                            .font(.system(size: 12, weight: .medium))
+                        Spacer(minLength: 0)
+                        Text(powerOn ? "ON" : "OFF")
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(powerOn ? Color.green : Color.secondary)
                     }
-                )) {
-                    Label("Power", systemImage: "power")
-                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .toggleStyle(.switch)
+                .buttonStyle(.borderless)
+                .focused($powerFocused)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(Color.accentColor, lineWidth: 1.5)
+                        .padding(-1)
+                        .opacity(powerFocused ? 1 : 0)
+                        .animation(.easeOut(duration: 0.12), value: powerFocused)
+                        .allowsHitTesting(false)
+                )
+
                 .padding(8)
 
-                if powerOn {
+                if pendingPowerOff {
+                    powerOffConfirmationBar
+                }
+
+                if showSlider {
                     Divider()
                 }
 
@@ -67,7 +105,7 @@ struct ContentView: View {
                         scheduleVolumeSend()
                     }
                     .focused($volumeFocused)
-                    .focusable(powerOn)
+                    .focusable(showSlider)
                     .onKeyPress(.leftArrow) {
                         adjustVolume(by: -0.5)
                         return .handled
@@ -92,12 +130,14 @@ struct ContentView: View {
                             Capsule().fill(Color.primary.opacity(0.08))
                         )
                 }
-                .defaultFocus($volumeFocused, powerOn)
+                .defaultFocus($volumeFocused, false)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .opacity(powerOn ? 1 : 0)
-                .allowsHitTesting(powerOn)
-                .accessibilityHidden(!powerOn)
+                .opacity(showSlider ? 1 : 0)
+                .allowsHitTesting(showSlider)
+                .accessibilityHidden(!showSlider)
+                .frame(height: showSlider ? nil : 0, alignment: .top)
+                .clipped()
             }
 
             Divider()
@@ -134,6 +174,16 @@ struct ContentView: View {
         .onAppear {
             NSApp.activate(ignoringOtherApps: true)
             syncState()
+            DispatchQueue.main.async {
+                volumeFocused = false
+                powerFocused = false
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+            DispatchQueue.main.async {
+                volumeFocused = false
+                powerFocused = false
+            }
         }
         .onChange(of: store.current?.host) {
             NSApp.activate(ignoringOtherApps: true)
@@ -143,6 +193,13 @@ struct ContentView: View {
             if scenePhase == .active {
                 NSApp.activate(ignoringOtherApps: true)
                 syncState()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    volumeFocused = false
+                    powerFocused = false
+                }
+            } else {
+                volumeFocused = false
+                powerFocused = false
             }
         }
     }
@@ -242,6 +299,33 @@ struct ContentView: View {
                 }
                 Button("Cancel") {
                     pendingRemoval = nil
+                }
+            }
+            .controlSize(.small)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.red.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+        .padding([.horizontal, .bottom], 6)
+    }
+
+    private var powerOffConfirmationBar: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Turn off \(store.current?.name ?? "the receiver")?")
+                .font(.system(size: 12, weight: .semibold))
+            Text("The receiver will switch to standby.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+            HStack(spacing: 10) {
+                Button("Turn Off") {
+                    pendingPowerOff = false
+                    guard let host else { return }
+                    denon.send("PWSTANDBY", host: host)
+                    powerOn = false
+                }
+                Button("Cancel") {
+                    pendingPowerOff = false
                 }
             }
             .controlSize(.small)
