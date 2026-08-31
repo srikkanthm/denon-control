@@ -25,6 +25,7 @@ struct ContentView: View {
     @State private var volumeMax: Double = 98
     @State private var volumeSet: DispatchWorkItem?
     @FocusState private var volumeFocused: Bool
+    @State private var pendingRemoval: DenonDevice?
 
     private var host: String? { store.current?.host }
 
@@ -83,6 +84,10 @@ struct ContentView: View {
             Divider()
 
             devicesSection
+
+            if pendingRemoval != nil {
+                confirmationBar
+            }
 
             Divider()
 
@@ -180,7 +185,7 @@ struct ContentView: View {
 
                         if store.paired.contains(where: { $0.host == device.host }) {
                             Button {
-                                store.removeDevice(device)
+                                pendingRemoval = device
                             } label: {
                                 Image(systemName: "minus.circle")
                                     .font(.system(size: 12))
@@ -200,6 +205,33 @@ struct ContentView: View {
                 .padding(.bottom, 8)
             }
         }
+    }
+
+    private var confirmationBar: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Remove \(pendingRemoval?.name ?? "this device")?")
+                .font(.system(size: 12, weight: .semibold))
+            Text("It will stay hidden until you scan and select it again.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+            HStack(spacing: 10) {
+                Button("Remove") {
+                    if let device = pendingRemoval {
+                        store.removeDevice(device)
+                    }
+                    pendingRemoval = nil
+                }
+                Button("Cancel") {
+                    pendingRemoval = nil
+                }
+            }
+            .controlSize(.small)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.red.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+        .padding([.horizontal, .bottom], 6)
     }
 
     private var sortedCandidates: [DenonDevice] {
