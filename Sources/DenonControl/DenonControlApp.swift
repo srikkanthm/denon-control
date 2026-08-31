@@ -62,6 +62,15 @@ struct ContentView: View {
         VStack(spacing: 0) {
             header
 
+            if let loginItemNote {
+                Text(loginItemNote)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
+            }
+
             if store.current != nil {
                 Divider()
 
@@ -178,10 +187,6 @@ struct ContentView: View {
 
             Divider()
 
-            loginItemRow
-
-            Divider()
-
             devicesSection
 
             if pendingRemoval != nil {
@@ -258,6 +263,27 @@ struct ContentView: View {
                 .font(.system(size: 12, weight: .medium))
                 .lineLimit(1)
             Spacer()
+            Text("Launch at login")
+                .font(.system(size: 9))
+                .foregroundStyle(.secondary)
+            Button {
+                toggleLoginItem(!launchAtLogin)
+            } label: {
+                Text(launchAtLogin ? "On" : "Off")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(launchAtLogin ? Color.green : Color.secondary)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule().fill(launchAtLogin
+                            ? Color.green.opacity(0.18)
+                            : Color.secondary.opacity(0.15))
+                    )
+            }
+            .buttonStyle(.plain)
+            .help("Launch at login")
+            .accessibilityLabel("Launch at login")
+            .accessibilityValue(launchAtLogin ? "On" : "Off")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -377,34 +403,6 @@ struct ContentView: View {
         .padding(.vertical, 10)
         .background(Color.red.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
         .padding([.horizontal, .bottom], 6)
-    }
-
-    private var loginItemRow: some View {
-        VStack(spacing: 6) {
-            Toggle(isOn: Binding(
-                get: { launchAtLogin },
-                set: { on in toggleLoginItem(on) }
-            )) {
-                HStack(spacing: 8) {
-                    Image(systemName: "power")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                    Text("Launch at login")
-                        .font(.system(size: 12))
-                }
-            }
-            .toggleStyle(.switch)
-            .controlSize(.small)
-
-            if let loginItemNote {
-                Text(loginItemNote)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
     }
 
     private func toggleLoginItem(_ on: Bool) {
