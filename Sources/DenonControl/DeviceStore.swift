@@ -17,6 +17,7 @@ final class DeviceStore: ObservableObject {
 
     private let telnet = DenonTelnet()
     private let mqueue = DispatchQueue(label: "denon.mdns")
+    private let hasSavedState: Bool
     private var browsers: [NWBrowser] = []
     private var probes: [NWConnection] = []
     private var resolvedServices: Set<NWEndpoint> = []
@@ -33,16 +34,23 @@ final class DeviceStore: ObservableObject {
 
     init() {
         let defaults = UserDefaults.standard
+        var loadedPaired: [DenonDevice] = []
         if let data = defaults.data(forKey: Keys.paired),
            let list = try? JSONDecoder().decode([DenonDevice].self, from: data) {
-            paired = list
+            loadedPaired = list
         }
+        var loadedCurrent: DenonDevice?
         if let data = defaults.data(forKey: Keys.current),
            let saved = try? JSONDecoder().decode(DenonDevice.self, from: data),
-           paired.contains(where: { $0.host == saved.host }) {
-            current = saved
+           loadedPaired.contains(where: { $0.host == saved.host }) {
+            loadedCurrent = saved
         }
-        ignored = Set(defaults.stringArray(forKey: Keys.ignored) ?? [])
+        let loadedIgnored = Set(defaults.stringArray(forKey: Keys.ignored) ?? [])
+
+        paired = loadedPaired
+        current = loadedCurrent
+        ignored = loadedIgnored
+        hasSavedState = !loadedPaired.isEmpty || loadedCurrent != nil
         startDiscovery()
         verifySaved()
     }
@@ -100,7 +108,8 @@ final class DeviceStore: ObservableObject {
     }
 
     private func consider(_ device: DenonDevice) {
-        guard !ignored.contains(device.host), current == nil else { return }
+        guard !ignored.contains(device.host) else { return }
+        guard current == nil, hasSavedState else { return }
         if paired.contains(where: { $0.host == device.host }) {
             selectSafely(device)
             return

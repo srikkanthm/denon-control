@@ -405,24 +405,9 @@ struct ContentView: View {
 }
 
 enum DenonIcon {
-    static let glyph = "\u{1014AC}"
-
     static var menuBarImage: NSImage {
-        let fontSize: CGFloat = 16
-        let font = NSFont.systemFont(ofSize: fontSize)
-        let glyphSize = (glyph as NSString).size(withAttributes: [.font: font])
-        let canvas = NSSize(
-            width: max(glyphSize.width, fontSize),
-            height: max(glyphSize.height, fontSize)
-        )
-        let image = NSImage(size: canvas)
-        image.lockFocus()
-        let origin = NSPoint(
-            x: (canvas.width - glyphSize.width) / 2,
-            y: (canvas.height - glyphSize.height) / 2
-        )
-        (glyph as NSString).draw(at: origin, withAttributes: [.font: font])
-        image.unlockFocus()
+        let path = Bundle.main.path(forResource: "DenonGlyphTemplate", ofType: "png")!
+        let image = NSImage(contentsOfFile: path)!
         image.isTemplate = true
         return image
     }
