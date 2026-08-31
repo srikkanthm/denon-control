@@ -19,6 +19,7 @@ final class DeviceStore: ObservableObject {
     private let mqueue = DispatchQueue(label: "denon.mdns")
     private var browsers: [NWBrowser] = []
     private var probes: [NWConnection] = []
+    private var resolvedServices: Set<NWEndpoint> = []
     private var seen: Set<String> = []
     private var names: [String: String] = [:]
     private var probed: Set<String> = []
@@ -179,12 +180,19 @@ final class DeviceStore: ObservableObject {
     }
 
     private func resolveEndpoint(_ result: NWBrowser.Result, displayName: String) {
+        guard resolvedServices.insert(result.endpoint).inserted else { return }
         let params = NWParameters.tcp
         if let ip = params.defaultProtocolStack.internetProtocol as? NWProtocolIP.Options {
             ip.version = .v4
         }
         let probe = NWConnection(to: result.endpoint, using: params)
         probe.stateUpdateHandler = { [weak self] state in
+            let release: () -> Void = {
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    self.probes.removeAll { $0 === probe }
+                }
+            }
             switch state {
             case .ready:
                 if let remote = probe.currentPath?.remoteEndpoint,
@@ -198,8 +206,10 @@ final class DeviceStore: ObservableObject {
                     }
                 }
                 probe.cancel()
+                release()
             case .failed:
                 probe.cancel()
+                release()
             default:
                 break
             }

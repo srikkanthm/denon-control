@@ -2,14 +2,16 @@ import Foundation
 import Darwin
 
 final class DenonTelnet {
+    private static let ioQueue = DispatchQueue(label: "denon.telnet.io", qos: .userInitiated)
+
     func send(_ command: String, host: String, port: UInt16 = 23) {
-        DispatchQueue(label: "denon.telnet", qos: .userInitiated).async {
+        Self.ioQueue.async {
             _ = self.execute(command, host: host, port: port)
         }
     }
 
     func query(_ command: String, host: String, port: UInt16 = 23, completion: @escaping (String?) -> Void) {
-        DispatchQueue(label: "denon.telnet.query", qos: .userInitiated).async {
+        Self.ioQueue.async {
             let response = self.execute(command, host: host, port: port)
             DispatchQueue.main.async {
                 completion(response)
