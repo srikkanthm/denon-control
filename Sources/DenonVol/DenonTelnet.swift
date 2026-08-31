@@ -2,21 +2,22 @@ import Foundation
 import Darwin
 
 final class DenonTelnet {
-    let host: String
-    let port: UInt16
-
-    init(host: String, port: UInt16 = 23) {
-        self.host = host
-        self.port = port
-    }
-
-    func send(_ command: String) {
+    func send(_ command: String, host: String, port: UInt16 = 23) {
         DispatchQueue(label: "denon.telnet", qos: .userInitiated).async {
-            _ = self.execute(command)
+            _ = self.execute(command, host: host, port: port)
         }
     }
 
-    private func execute(_ command: String) -> String? {
+    func query(_ command: String, host: String, port: UInt16 = 23, completion: @escaping (String?) -> Void) {
+        DispatchQueue(label: "denon.telnet.query", qos: .userInitiated).async {
+            let response = self.execute(command, host: host, port: port)
+            DispatchQueue.main.async {
+                completion(response)
+            }
+        }
+    }
+
+    private func execute(_ command: String, host: String, port: UInt16) -> String? {
         let fd = socket(AF_INET, SOCK_STREAM, 0)
         guard fd >= 0 else { return nil }
         defer { close(fd) }
@@ -43,10 +44,15 @@ final class DenonTelnet {
 
         var response = ""
         var buffer = [UInt8](repeating: 0, count: 4096)
+        var gotData = false
         while true {
             let n = recv(fd, &buffer, buffer.count, 0)
             if n <= 0 { break }
             response += String(decoding: buffer[0..<n], as: UTF8.self)
+            guard !gotData else { continue }
+            gotData = true
+            var idleTimeout = timeval(tv_sec: 0, tv_usec: 600_000)
+            setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &idleTimeout, socklen_t(MemoryLayout<timeval>.size))
         }
         return response
     }
