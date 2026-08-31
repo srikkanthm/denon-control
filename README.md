@@ -7,6 +7,7 @@ A macOS menu bar app for controlling a Denon AVR over telnet. Shows the current 
 - **Menu bar panel** — click the Denon icon in the menu bar (SwiftUI `MenuBarExtra`, window style).
 - **Auto-discovery & pairing** — finds Denon AVRs on the local network via mDNS (`_airplay._tcp` and `_denonavr._tcp`), probes them over telnet (`MV?`), and auto-pairs. Devices persist across launches.
 - **Volume control** — custom slider (drag, or arrow keys when focused) that sends `MV` commands over telnet. Volume reads back the receiver's current value and max.
+- **Global volume shortcuts** — press **⌘⌥↑** or **⌘⌥↓** anywhere on the Mac to nudge the receiver volume up or down by 0.5 (works without opening the panel, no permissions needed).
 - **Power control** — custom power button that reflects ON/OFF state, with an inline confirmation before turning the device off.
 - **Unpair** — remove a device (it stays hidden until you scan and re-select it).
 
@@ -37,6 +38,7 @@ Sources/DenonControl/
   VolumeSliderView.swift  # custom volume slider (drag + arrow keys)
   DeviceStore.swift       # mDNS discovery, pairing, UserDefaults persistence
   DenonTelnet.swift       # tiny telnet client (single shared queue)
+  GlobalVolumeShortcuts.swift  # Carbon global hotkeys (volume up/down)
 Resources/
   Info.plist
   AppIcon.icns
@@ -47,3 +49,4 @@ build.sh                  # release build -> DenonControl.app
 
 - Receivers may be found under multiple service types (AirPlay vs. native `_denonavr`), so the app dedupes by resolved host.
 - Volume values with fractional steps (0.5) are sent as `MV<value*10>` (e.g. 56.5 → `MV565`).
+- Global shortcuts are registered with Carbon `RegisterEventHotKey`; the current device (from `UserDefaults`) is the target. Key repeats nudge repeatedly.

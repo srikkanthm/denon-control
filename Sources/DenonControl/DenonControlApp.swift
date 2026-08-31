@@ -3,6 +3,7 @@ import AppKit
 
 @main
 struct DenonVolApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var store = DeviceStore()
 
     var body: some Scene {
@@ -13,6 +14,17 @@ struct DenonVolApp: App {
         }
         .menuBarExtraStyle(.window)
         .windowResizability(.contentSize)
+    }
+}
+
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        GlobalVolumeShortcuts.shared.start()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        GlobalVolumeShortcuts.shared.stop()
     }
 }
 
@@ -92,45 +104,67 @@ struct ContentView: View {
                     Divider()
                 }
 
-                HStack(spacing: 10) {
-                    VolumeSliderView(
-                        value: Binding(
-                            get: { volume },
-                            set: { volume = $0 }
-                        ),
-                        minValue: 0,
-                        maxValue: volumeMax,
-                        step: 0.5
-                    ) { _ in
-                        scheduleVolumeSend()
+                VStack(spacing: 8) {
+                    HStack(spacing: 6) {
+                        Text("Volume")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("Receiver volume")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.tertiary)
                     }
-                    .focused($volumeFocused)
-                    .focusable(showSlider)
-                    .onKeyPress(.leftArrow) {
-                        adjustVolume(by: -0.5)
-                        return .handled
-                    }
-                    .onKeyPress(.rightArrow) {
-                        adjustVolume(by: 0.5)
-                        return .handled
-                    }
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .strokeBorder(Color.accentColor, lineWidth: 1.5)
-                            .padding(-1.5)
-                            .opacity(volumeFocused ? 1 : 0)
-                            .animation(.easeOut(duration: 0.12), value: volumeFocused)
-                            .allowsHitTesting(false)
-                    )
 
-                    Text(String(format: "%.1f", volume))
-                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                        .frame(width: 52, height: 22)
-                        .background(
-                            Capsule().fill(Color.primary.opacity(0.08))
+                    HStack(spacing: 10) {
+                        VolumeSliderView(
+                            value: Binding(
+                                get: { volume },
+                                set: { volume = $0 }
+                            ),
+                            minValue: 0,
+                            maxValue: volumeMax,
+                            step: 0.5
+                        ) { _ in
+                            scheduleVolumeSend()
+                        }
+                        .focused($volumeFocused)
+                        .focusable(showSlider)
+                        .onKeyPress(.leftArrow) {
+                            adjustVolume(by: -0.5)
+                            return .handled
+                        }
+                        .onKeyPress(.rightArrow) {
+                            adjustVolume(by: 0.5)
+                            return .handled
+                        }
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .strokeBorder(Color.accentColor, lineWidth: 1.5)
+                                .padding(-1.5)
+                                .opacity(volumeFocused ? 1 : 0)
+                                .animation(.easeOut(duration: 0.12), value: volumeFocused)
+                                .allowsHitTesting(false)
                         )
+
+                        Text(String(format: "%.1f", volume))
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .frame(width: 52, height: 22)
+                            .background(
+                                Capsule().fill(Color.primary.opacity(0.08))
+                            )
+                    }
+                    .defaultFocus($volumeFocused, false)
+
+                    HStack(spacing: 6) {
+                        Text("Shortcut")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("⌘⌥↑  ⌘⌥↓")
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                .defaultFocus($volumeFocused, false)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .opacity(showSlider ? 1 : 0)
