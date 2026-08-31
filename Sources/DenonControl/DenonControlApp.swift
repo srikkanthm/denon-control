@@ -52,8 +52,9 @@ struct ContentView: View {
 
                 if powerOn {
                     Divider()
+                }
 
-                    HStack(spacing: 10) {
+                HStack(spacing: 10) {
                     VolumeSliderView(
                         value: Binding(
                             get: { volume },
@@ -66,7 +67,7 @@ struct ContentView: View {
                         scheduleVolumeSend()
                     }
                     .focused($volumeFocused)
-                    .focusable()
+                    .focusable(powerOn)
                     .onKeyPress(.leftArrow) {
                         adjustVolume(by: -0.5)
                         return .handled
@@ -91,10 +92,12 @@ struct ContentView: View {
                             Capsule().fill(Color.primary.opacity(0.08))
                         )
                 }
-                .defaultFocus($volumeFocused, true)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                }
+                .defaultFocus($volumeFocused, powerOn)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .opacity(powerOn ? 1 : 0)
+                .allowsHitTesting(powerOn)
+                .accessibilityHidden(!powerOn)
             }
 
             Divider()
