@@ -13,6 +13,7 @@ final class DeviceStore: ObservableObject {
     @Published private(set) var candidates: [DenonDevice] = []
     @Published private(set) var paired: [DenonDevice] = []
     @Published private(set) var current: DenonDevice?
+    @Published private(set) var hiddenCount = 0
 
     private let telnet = DenonTelnet()
     private let mqueue = DispatchQueue(label: "denon.mdns")
@@ -57,29 +58,44 @@ final class DeviceStore: ObservableObject {
             current = nil
         }
         ignored.insert(device.host)
+        candidates.removeAll { $0.host == device.host }
         savePaired()
         saveCurrent()
         saveIgnored()
+        refreshHiddenCount()
     }
 
     func rescan() {
-        ignored = []
         probed = []
-        saveIgnored()
+        candidates = []
         for (host, name) in names {
-            consider(DenonDevice(name: name, host: host))
+            let device = DenonDevice(name: name, host: host)
+            candidates.append(device)
+            if !ignored.contains(host) {
+                consider(device)
+            }
         }
+        refreshHiddenCount()
     }
 
     // MARK: - Pairing
 
     private func selectSafely(_ device: DenonDevice) {
+        ignored.remove(device.host)
+        saveIgnored()
         if !paired.contains(where: { $0.host == device.host }) {
             paired.append(device)
             savePaired()
         }
         current = device
         saveCurrent()
+        if names[device.host] == nil {
+            names[device.host] = device.name
+        }
+        if !candidates.contains(where: { $0.host == device.host }) {
+            candidates.append(device)
+        }
+        refreshHiddenCount()
     }
 
     private func consider(_ device: DenonDevice) {
@@ -196,8 +212,13 @@ final class DeviceStore: ObservableObject {
         guard !seen.contains(host) else { return }
         seen.insert(host)
         names[host] = name
+        guard !ignored.contains(host) else { return }
         let device = DenonDevice(name: name, host: host)
         candidates.append(device)
         consider(device)
+    }
+
+    private func refreshHiddenCount() {
+        hiddenCount = max(0, names.count - candidates.count)
     }
 }

@@ -32,51 +32,53 @@ struct ContentView: View {
         VStack(spacing: 0) {
             header
 
-            Divider()
+            if store.current != nil {
+                Divider()
 
-            Toggle(isOn: Binding(
-                get: { powerOn },
-                set: { newValue in
-                    powerOn = newValue
-                    guard let host else { return }
-                    denon.send(newValue ? "PWON" : "PWSTANDBY", host: host)
-                }
-            )) {
-                Label("Power", systemImage: "power")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .toggleStyle(.switch)
-            .padding(8)
-
-            Divider()
-
-            HStack(spacing: 10) {
-                Slider(value: Binding(
-                    get: { volume },
+                Toggle(isOn: Binding(
+                    get: { powerOn },
                     set: { newValue in
-                        volume = newValue
-                        scheduleVolumeSend()
+                        powerOn = newValue
+                        guard let host else { return }
+                        denon.send(newValue ? "PWON" : "PWSTANDBY", host: host)
                     }
-                ), in: 0...volumeMax, step: 0.5)
-                .focused($volumeFocused)
-                .focusable()
-                .onKeyPress(.leftArrow) {
-                    adjustVolume(by: -0.5)
-                    return .handled
+                )) {
+                    Label("Power", systemImage: "power")
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .onKeyPress(.rightArrow) {
-                    adjustVolume(by: 0.5)
-                    return .handled
-                }
+                .toggleStyle(.switch)
+                .padding(8)
 
-                Text(String(format: "%.1f", volume))
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .frame(width: 30, alignment: .trailing)
-                    .foregroundStyle(.secondary)
+                Divider()
+
+                HStack(spacing: 10) {
+                    Slider(value: Binding(
+                        get: { volume },
+                        set: { newValue in
+                            volume = newValue
+                            scheduleVolumeSend()
+                        }
+                    ), in: 0...volumeMax, step: 0.5)
+                    .focused($volumeFocused)
+                    .focusable()
+                    .onKeyPress(.leftArrow) {
+                        adjustVolume(by: -0.5)
+                        return .handled
+                    }
+                    .onKeyPress(.rightArrow) {
+                        adjustVolume(by: 0.5)
+                        return .handled
+                    }
+
+                    Text(String(format: "%.1f", volume))
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .frame(width: 30, alignment: .trailing)
+                        .foregroundStyle(.secondary)
+                }
+                .defaultFocus($volumeFocused, true)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
             }
-            .defaultFocus($volumeFocused, true)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
 
             Divider()
 
@@ -126,7 +128,10 @@ struct ContentView: View {
             Circle()
                 .fill(store.current != nil ? Color.green : Color.orange)
                 .frame(width: 8, height: 8)
-            Text(store.current?.name ?? (store.candidates.isEmpty ? "Searching…" : "Select a device"))
+            Text(store.current?.name
+                ?? (store.candidates.isEmpty
+                    ? (store.hiddenCount > 0 ? "No devices — tap Scan below" : "Searching…")
+                    : "Select a device"))
                 .font(.system(size: 12, weight: .medium))
                 .lineLimit(1)
             Spacer()
