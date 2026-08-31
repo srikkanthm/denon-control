@@ -50,16 +50,21 @@ struct ContentView: View {
                 .toggleStyle(.switch)
                 .padding(8)
 
-                Divider()
+                if powerOn {
+                    Divider()
 
-                HStack(spacing: 10) {
-                    Slider(value: Binding(
-                        get: { volume },
-                        set: { newValue in
-                            volume = newValue
-                            scheduleVolumeSend()
-                        }
-                    ), in: 0...volumeMax, step: 0.5)
+                    HStack(spacing: 10) {
+                    VolumeSliderView(
+                        value: Binding(
+                            get: { volume },
+                            set: { volume = $0 }
+                        ),
+                        minValue: 0,
+                        maxValue: volumeMax,
+                        step: 0.5
+                    ) { _ in
+                        scheduleVolumeSend()
+                    }
                     .focused($volumeFocused)
                     .focusable()
                     .onKeyPress(.leftArrow) {
@@ -70,15 +75,26 @@ struct ContentView: View {
                         adjustVolume(by: 0.5)
                         return .handled
                     }
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(Color.accentColor, lineWidth: 1.5)
+                            .padding(-1.5)
+                            .opacity(volumeFocused ? 1 : 0)
+                            .animation(.easeOut(duration: 0.12), value: volumeFocused)
+                            .allowsHitTesting(false)
+                    )
 
                     Text(String(format: "%.1f", volume))
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .frame(width: 30, alignment: .trailing)
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .frame(width: 52, height: 22)
+                        .background(
+                            Capsule().fill(Color.primary.opacity(0.08))
+                        )
                 }
                 .defaultFocus($volumeFocused, true)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                }
             }
 
             Divider()
@@ -116,12 +132,12 @@ struct ContentView: View {
             NSApp.activate(ignoringOtherApps: true)
             syncState()
         }
-        .onChange(of: store.current?.host) { _ in
+        .onChange(of: store.current?.host) {
             NSApp.activate(ignoringOtherApps: true)
             syncState()
         }
-        .onChange(of: scenePhase) { phase in
-            if phase == .active {
+        .onChange(of: scenePhase) {
+            if scenePhase == .active {
                 NSApp.activate(ignoringOtherApps: true)
                 syncState()
             }

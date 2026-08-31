@@ -108,7 +108,7 @@ final class DeviceStore: ObservableObject {
         probed.insert(device.host)
         telnet.query("MV?", host: device.host) { [weak self] response in
             Task { @MainActor [weak self] in
-                guard let self, let response else { return }
+                guard let self, response != nil else { return }
                 self.selectSafely(device)
             }
         }
