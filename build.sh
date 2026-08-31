@@ -1,3 +1,4 @@
+defaults delete com.local.DenonControl
 #!/bin/sh
 set -e
 cd "$(dirname "$0")"
